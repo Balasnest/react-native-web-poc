@@ -1,8 +1,15 @@
 import React from 'react';
-import { View, Text, Image, ImageBackground, ScrollView, FlatList, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, Image, Dimensions, ImageBackground, ScrollView, FlatList, TouchableOpacity, Alert, Platform } from 'react-native';
 import { homeAPI } from './services/HomeApi';
 import Datastore from 'react-native-local-mongodb';
 import { AsyncStorage } from 'react-native';
+import { RecyclerListView, LayoutProvider, DataProvider } from "recyclerlistview";
+import FlightCard from "./FlightCard";
+import FlightData from "./FlightData";
+import HotelCard from "./HotelCard";
+import TopWidget from "./TopWidget";
+
+const { width, height } = Dimensions.get('window');
 
 var cities = [{ "id": 1, "city_name": "Salem", "date_from": "9/21/2015", "date_to": "1/3/2016" },
 { "id": 2, "city_name": "Thanjavur", "date_from": "10/30/2015", "date_to": "2/28/2016" },
@@ -136,7 +143,10 @@ export default class Home extends React.Component {
         this.state = {
             datasource: cities,
             dataviewed: viewed,
-            datafavs: favs
+            datafavs: favs,
+            dataProvider: new DataProvider((r1, r2) => {
+                return r1 !== r2
+            }).cloneWithRows(FlightData)
         };
 
         console.log("creating database...");
@@ -158,13 +168,49 @@ export default class Home extends React.Component {
         catch (e) {
             console.warn(e);
         }
+
+
+        // Recycle Data Provider
+        this._layoutProvider = new LayoutProvider((i) => {
+            return this.state.dataProvider.getDataForIndex(i).type;
+        }, (type, dim) => {
+            switch (type) {
+                case "HOTEL_ITEM":
+                    dim.width = width;
+                    dim.height = 83;
+                    break;
+                case "FL_ITEM":
+                    dim.width = width;
+                    dim.height = 80;
+                    break;
+                case "HEADER":
+                    dim.width = width;
+                    dim.height = 300;
+                    break;
+                default:
+                    dim.width = width;
+                    dim.height = 0;
+
+            }
+        });
+        this._renderRow = this._renderRow.bind(this);
+    }
+
+    _renderRow(type, data) {
+        switch (type) {
+            case "HOTEL_ITEM":
+                return <HotelCard />
+            case "FL_ITEM":
+                return <FlightCard data={data} />;
+            case "HEADER":
+                return <TopWidget data={data} />;
+            default:
+                return null;
+        }
     }
 
     componentDidMount() {
         this.callAPIServices();
-
-
-
         console.log("clearing database...");
         if (Platform.OS === 'web')
             window.localStorage.clear();
@@ -184,7 +230,6 @@ export default class Home extends React.Component {
         db.insert(data, function (err, newDocs) {
             console.log(newDocs)
         });
-
     }
 
     onAlertPress = () => {
@@ -246,7 +291,17 @@ export default class Home extends React.Component {
     render() {
         return (
             <View style={{ flex: 1 }}>
-                <ScrollView style={{ flex: 1 }}>
+
+                {/* <RecyclerListView
+                    rowRenderer={this._renderRow}
+                    dataProvider={this.state.dataProvider}
+                    layoutProvider={this._layoutProvider}
+                /> */}
+
+                <ScrollView >
+
+                    
+
                     <View style={styles.container}>
                         <Text style={styles.main}>Welcome to Bangalore, Karnataka</Text>
                         <TouchableOpacity onPress={this.onAlertPress} style={styles.button}>
@@ -263,7 +318,6 @@ export default class Home extends React.Component {
                             horizontal
                             showsHorizontalScrollIndicator={false}
                         />
-
                     </View>
 
                     <View style={styles.container2}>
